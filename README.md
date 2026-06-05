@@ -39,9 +39,10 @@ The results are particularly relevant to clinical trials and other studies invol
 
 ## Project Materials
 
-- Final Research Report
-- Conference Poster
-- R Code and Numerical Analysis
+- [Final Research Report](Generalized Bonferroni and Minimax Error Spending.pdf)
+- [Conference Poster](Final_Minimax_Poster.pdf)
+- [Quarto Analysis](Minimax_error_spending_analysis.qmd)
+- [Rendered Analysis](Minimax_error_spending_analysis.html)
 
 ## Presentation
 
