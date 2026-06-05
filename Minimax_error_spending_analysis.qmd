@@ -1,0 +1,241 @@
+---
+title: "Minimax_error_spending_analysis"
+format: html
+editor: visual
+---
+
+Generalized Bonferroni and Minimax Error Spending
+Final analysis script for figures, tables, and numerical results
+
+```{r}
+# Load package
+library(nleqslv)
+
+# Sample size calculation
+SampleSize <- function(alpha, beta, delta) {
+  ((qnorm(alpha) + qnorm(beta)) / delta)^2}
+```
+
+```{r}
+# Standard Bonferroni error spending
+BonfErrorSpending <- function(alpha, beta, delta) {
+  d <- length(delta)
+  
+  alpha.bonf <- rep(alpha / d, d)
+  beta.bonf <- rep(beta / d, d)
+  n.bonf <- SampleSize(alpha.bonf, beta.bonf, delta)
+  
+  data.frame(alpha.bonf, beta.bonf, n.bonf)}
+```
+
+
+```{r}
+# Proportionate error spending
+PropErrorSpending <- function(alpha, beta, delta) {
+  f.alpha <- function(C) {
+    alpha - sum(pnorm(-C * delta))}
+  
+  f.beta <- function(C) {
+    beta - sum(pnorm(-C * delta))}
+  
+  k <- length(delta)
+  C.upperbound <- (qnorm(1 - alpha / k) + qnorm(1 - beta / k)) / min(delta)
+  
+  C.alpha <- uniroot(f.alpha, c(0, C.upperbound), tol = 10^(-10))$root
+  C.beta <- uniroot(f.beta, c(0, C.upperbound), tol = 10^(-10))$root
+  
+  alpha.prop <- pnorm(-C.alpha * delta)
+  beta.prop <- pnorm(-C.beta * delta)
+  n.prop <- SampleSize(alpha.prop, beta.prop, delta)
+  
+  data.frame(alpha.prop, beta.prop, n.prop)}
+```
+
+```{r}
+# Minimax optimal error spending
+
+OptErrorSpending <- function(alpha, beta, delta) {
+  f.alpha <- function(CN) {
+    C <- CN[1]
+    N <- CN[2]
+    alpha - sum(pnorm(-(delta^2 * N + C) / (2 * delta * sqrt(N))))}
+  
+  f.beta <- function(CN) {
+    C <- CN[1]
+    N <- CN[2]
+    beta - sum(pnorm(-(delta^2 * N - C) / (2 * delta * sqrt(N))))}
+  
+  f.both <- function(CN) {
+    c(f.alpha(CN), f.beta(CN))}
+  
+  prop.result <- PropErrorSpending(alpha, beta, delta)
+  
+  N.init <- prop.result$n.prop[1]
+  C.init <- (prop.result$alpha.prop[1])^2 - (prop.result$beta.prop[1])^2
+  
+  CN <- nleqslv(c(C.init, N.init), f.both)$x
+  
+  C <- CN[1]
+  N <- CN[2]
+  
+  alpha.opt <- pnorm(-(delta^2 * N + C) / (2 * delta * sqrt(N)))
+  beta.opt <- pnorm(-(delta^2 * N - C) / (2 * delta * sqrt(N)))
+  n.opt <- SampleSize(alpha.opt, beta.opt, delta)
+  
+  data.frame(alpha.opt, beta.opt, n.opt)}
+```
+
+```{r}
+# Helper function for the poster table
+PosterTable <- function(alpha, beta, delta) {
+  bonf <- BonfErrorSpending(alpha, beta, delta)
+  prop <- PropErrorSpending(alpha, beta, delta)
+  opt <- OptErrorSpending(alpha, beta, delta)
+  
+  data.frame(
+    Method = c("Bonferroni", "Proportionate", "Minimax"),
+    Overall_N = c(max(bonf$n.bonf), max(prop$n.prop), max(opt$n.opt)),
+    Alpha_1 = c(bonf$alpha.bonf[1], prop$alpha.prop[1], opt$alpha.opt[1]),
+    Alpha_2 = c(bonf$alpha.bonf[2], prop$alpha.prop[2], opt$alpha.opt[2]),
+    Beta_1 = c(bonf$beta.bonf[1], prop$beta.prop[1], opt$beta.opt[1]),
+    Beta_2 = c(bonf$beta.bonf[2], prop$beta.prop[2], opt$beta.opt[2]))}
+```
+
+```{r}
+# Worked example table
+alpha.example <- 0.05
+beta.example <- 0.15
+delta.example <- c(0.54, 0.21)
+
+poster.table.example <- PosterTable(alpha.example, beta.example, delta.example)
+poster.table.example
+```
+
+```{r}
+# Main two-endpoint simulation study
+alpha <- 0.05
+beta <- 0.15
+
+delta1 <- 0.20
+delta2.values <- seq(0.10, 0.40, by = 0.01)
+
+results <- data.frame()
+
+for (i in 1:length(delta2.values)) {
+  delta2 <- delta2.values[i]
+  delta <- c(delta1, delta2)
+  
+  bonf <- BonfErrorSpending(alpha, beta, delta)
+  prop <- PropErrorSpending(alpha, beta, delta)
+  opt <- OptErrorSpending(alpha, beta, delta)
+  
+   results <- rbind(
+    results,
+    data.frame(
+      delta1 = delta1,
+      delta2 = delta2,
+      ratio_12 = delta1 / delta2,
+      ratio_21 = delta2 / delta1,
+      
+      alpha1.bonf = bonf$alpha.bonf[1],
+      alpha2.bonf = bonf$alpha.bonf[2],
+      beta1.bonf = bonf$beta.bonf[1],
+      beta2.bonf = bonf$beta.bonf[2],
+      
+      alpha1.prop = prop$alpha.prop[1],
+      alpha2.prop = prop$alpha.prop[2],
+      beta1.prop = prop$beta.prop[1],
+      beta2.prop = prop$beta.prop[2],
+      
+      alpha1.opt = opt$alpha.opt[1],
+      alpha2.opt = opt$alpha.opt[2],
+      beta1.opt = opt$beta.opt[1],
+      beta2.opt = opt$beta.opt[2],
+      
+      alpha1.share.opt = opt$alpha.opt[1] / alpha,
+      alpha2.share.opt = opt$alpha.opt[2] / alpha,
+      beta1.share.opt = opt$beta.opt[1] / beta,
+      beta2.share.opt = opt$beta.opt[2] / beta,
+      
+      N.bonf = max(bonf$n.bonf),
+      N.prop = max(prop$n.prop),
+      N.opt = max(opt$n.opt),
+      
+      abs.saving = max(bonf$n.bonf) - max(opt$n.opt),
+      prop.saving = 1 - max(opt$n.opt) / max(bonf$n.bonf),
+      ratio.saving = max(bonf$n.bonf) / max(opt$n.opt)))}
+```
+
+```{r}
+# Figure 1: Optimal alpha allocation under minimax
+plot(results$ratio_12, results$alpha1.share.opt,
+     type = "l", lwd = 2,
+     xlab = expression(rho == delta[1] / delta[2]),
+     ylab = "Share of total alpha",
+     main = "Optimal alpha allocation under minimax")
+
+lines(results$ratio_12, results$alpha2.share.opt, lwd = 2, lty = 2)
+abline(h = 0.5, lty = 3)
+
+legend("topright",
+       legend = c("Test 1", "Test 2", "Equal split"),
+       lty = c(1, 2, 3),
+       lwd = c(2, 2, 1),
+       bty = "n")
+```
+
+```{r}
+# Figure 2: Proportional saving over standard Bonferroni
+plot(results$ratio_12, results$prop.saving,
+     type = "l", lwd = 2,
+     xlab = expression(rho == delta[1] / delta[2]),
+     ylab = expression(1 - N[OPT] / N[BONF]),
+     main = "Proportional saving over standard Bonferroni")
+
+abline(h = 0, lty = 2)
+```
+
+```{r}
+# Figure 3: Absolute sample size saving over standard Bonferroni
+plot(results$ratio_12, results$abs.saving,
+     type = "l", lwd = 2,
+     xlab = expression(rho == delta[1] / delta[2]),
+     ylab = expression(N[BONF] - N[OPT]),
+     main = "Absolute sample size saving over standard Bonferroni")
+
+abline(h = 0, lty = 2)
+```
+
+```{r}
+# Figure 4: Standard Bonferroni vs Minimax
+plot(results$ratio_12, results$N.bonf,
+     type = "l", lwd = 2,
+     xlab = expression(rho == delta[1] / delta[2]),
+     ylab = "Overall required sample size",
+     main = "Standard Bonferroni vs Minimax")
+
+lines(results$ratio_12, results$N.opt, lwd = 2, lty = 2)
+
+legend("topright",
+       legend = c("Bonferroni", "Minimax"),
+       lty = c(1, 2),
+       lwd = c(2, 2),
+       bty = "n")
+```
+
+```{r}
+# Summary table for selected effect size ratios
+summary.results <- subset(
+  results,
+  round(ratio_12, 2) %in% c(0.50, 0.75, 1.00, 1.25, 1.50, 2.00)
+)[
+  , c("delta1", "delta2", "ratio_12", "N.bonf", "N.prop", "N.opt",
+      "abs.saving", "prop.saving",
+      "alpha1.share.opt", "alpha2.share.opt",
+      "beta1.share.opt", "beta2.share.opt")]
+
+summary.results
+```
+
+
+
