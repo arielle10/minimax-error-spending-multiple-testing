@@ -39,7 +39,7 @@ The results are particularly relevant to clinical trials and other studies invol
 
 ## Project Materials
 
-- [Final Research Report](Generalized Bonferroni and Minimax Error Spending.pdf)
+- [Final Research Report](Generalized Bonferroni and Minimax Error Spending report.pdf)
 - [Conference Poster](Final_Minimax_Poster.pdf)
 - [Quarto Analysis](Minimax_error_spending_analysis.qmd)
 - [Rendered Analysis](Minimax_error_spending_analysis.html)
